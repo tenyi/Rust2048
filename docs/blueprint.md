@@ -93,18 +93,15 @@ Rust2048/
 │   ├── main.rs              # Entry point — eframe::run_native()
 │   ├── game/
 │   │   ├── mod.rs           # Re-exports everything from sub-modules
-│   │   ├── grid.rs          # Grid<Tile> type + coordinate system
-│   │   ├── tile.rs          # Tile { value: u16, new: bool }
-│   │   ├── move_engine.rs   # slide(), merge(), add_random()
+│   │   ├── grid.rs          # Grid<Tile> type + coordinate system + slide_and_merge
+│   │   ├── tile.rs          # Tile { value: u16, newly_placed: bool }
+│   │   ├── move_engine.rs   # slide_line() per row/column; Direction enum
 │   │   └── score_tracker.rs # ScoreTracker with current & best
 │   ├── gui/
-│   │   ├── mod.rs           # Re-exports GUI types
-│   │   ├── window.rs        # GameWindow (eframe::App) — orchestrates render + input
-│   │   ├── renderer.rs      # TileRenderer, draw_grid(), draw_tile()
-│   │   └── font_loader.rs   # load_font(path: &Path) -> Result<FontData>
+│   │   ├── mod.rs           # Re-exports GUI types (GameWindow)
+│   │   └── window.rs        # GameWindow (eframe::App) — orchestrates render + input; includes font setup, tile drawing, win overlay
 │   └── persistence/
-│       ├── mod.rs           # Re-exports persistence types
-│       └── high_score_store.rs  # save/load HighScore to/from disk
+│       └── mod.rs           # save/load HighScore to/from disk; default_path()
 ├── fonts/                   # Optional bundled custom fonts (user-provided TTF files)
 │   └── .gitkeep
 └── assets/                  # Optional image assets (background, tile textures)

@@ -21,7 +21,7 @@ Each item corresponds to a bounded unit of work. Check off immediately after ver
 
 ## Phase P2: Move Engine — Slide & Merge Algorithm ✅ COMPLETED
 
-- [x] Define `Direction { Up, Down, Left, Right }` enum
+- [x] Define `Direction { Left, Right, Up, Down }` enum (matches Rust struct definition order)
 - [x] Implement `slide_line()` for one row/column (compress → merge → pad)
 - [x] Implement `Grid::slide_and_merge(direction)` applying slide to all rows/cols
 - [x] Return `bool` indicating whether the grid actually changed
@@ -41,7 +41,7 @@ Each item corresponds to a bounded unit of work. Check off immediately after ver
 - [x] Write test: three consecutive equal tiles → only leading pair merges (no chain)
 - [x] Write test: `is_game_over()` on full grid with no possible merges returns true
 - [x] Write test: `has_won(2048)` returns true when 2048 tile exists
-- [x] Run `cargo test` — all pass (18 tests passing)
+- [x] Run `cargo test` — all pass (26 tests passing, including Right/Up/Down direction coverage)
 
 ## Phase P5: GUI Scaffold — GameWindow (eframe::App) ✅ COMPLETED
 
@@ -82,8 +82,8 @@ Each item corresponds to a bounded unit of work. Check off immediately after ver
 - [x] Game title displayed at top of window ("Rust 2048") in large bold text
 - [x] Improved UI layout: score panel with title, scores centered, New Game button aligned right
 - [x] Responsive sizing: grid auto-scales to available width (minimum 300px)
-- [ ] Custom font support deferred to post-MVP (default system font used)
-- [x] Final `cargo test` — all 18 tests pass ✅
+- [x] Custom font support implemented in P11 (Noto Sans CJK via `setup_custom_font`)
+- [x] Final `cargo test` — all 26 tests pass ✅
 - [x] Final `cargo clippy -- -D warnings` — clean build ✅
 - [x] Final `cargo build --release` — optimized binary at target/release/rust-2048 (9.1 MB) ✅
 
@@ -95,3 +95,14 @@ Each item corresponds to a bounded unit of work. Check off immediately after ver
 - [x] Applied custom font to all UI text elements via proportional font family
 - [x] Fallback mechanism: uses default system font if custom font not found
 - [x] Verified `cargo clippy` — no warnings ✅
+
+## Post-MVP Bug Fix: Right/Down Direction Correctness ✅ COMPLETED
+
+> Originally `Direction::Left | Direction::Right` and `Direction::Up | Direction::Down` shared match arms, treating all four directions as identical. This caused **Right** to slide toward left edge and **Down** to slide toward top edge instead of their intended direction.
+
+- [x] Split into 4 separate match arms
+- [x] Right: `row.reverse()` → `slide_line(row)` → `row.reverse()` (mirror the row before sliding)
+- [x] Down: extract column → `col_vec.reverse()` → `slide_line(&mut col_vec)` → un-reverse before writing back
+- [x] Up & Left remain unchanged (natural index 0 direction)
+- [x] Corrected column extraction in Up/Down to iterate by column index (`cells[r][c]`) instead of row iterator
+- [x] Added 6 new tests covering Right, Up, Down movement and merge scenarios — all pass

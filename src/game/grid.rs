@@ -56,30 +56,56 @@ impl Grid {
         let old_cells = self.cells; // Copy since [[Option<Tile>; 4]; 4] is Copy
 
         match direction {
-            Direction::Left | Direction::Right => {
+            Direction::Left => {
                 for row in &mut self.cells {
                     slide_line(row);
                 }
             }
-            Direction::Up | Direction::Down => {
-                // Extract columns from snapshot, process each, then write back.
+            Direction::Right => {
+                // Right: reverse each row, slide toward index 0 (= original right), then un-reverse.
+                for row in &mut self.cells {
+                    row.reverse();
+                    slide_line(row);
+                    row.reverse();
+                }
+            }
+            Direction::Up => {
+                // Extract each column from snapshot, slide toward top (index 0), write back.
                 let mut cols: [[Option<Tile>; 4]; 4] = [[None; 4]; 4];
 
-                for (c, col_data) in old_cells.iter().enumerate() {
-                    let mut col_vec: Vec<Option<Tile>> = col_data.to_vec(); // Clone the slice into a new vec.
-                    slide_line(&mut col_vec);
+                for c in 0..4 {
+                    // Pull out all cells[r][c] into a single column vector.
+                    let mut col_vec: Vec<Option<Tile>> = (0..4)
+                        .map(|r| old_cells[r][c])
+                        .collect();
+                    slide_line(&mut col_vec); // Compress toward row 0 (top).
 
-                    for (r, tile_opt) in col_vec.into_iter().enumerate() {
-                        cols[r][c] = tile_opt;
+                    for r in 0..4 {
+                        cols[r][c] = col_vec[r];
                     }
                 }
 
-                // Write processed columns back to the grid.
-                for (r, row) in self.cells.iter_mut().enumerate() {
-                    for (c, cell) in row.iter_mut().enumerate() {
-                        *cell = cols[r][c];
+                self.cells.copy_from_slice(&cols);
+            }
+            Direction::Down => {
+                // Extract each column from snapshot, reverse before slide_line so tiles compress toward bottom (row 3), then un-reverse.
+                let mut cols: [[Option<Tile>; 4]; 4] = [[None; 4]; 4];
+
+                for c in 0..4 {
+                    // Pull out all cells[r][c] into a single column vector.
+                    let mut col_vec: Vec<Option<Tile>> = (0..4)
+                        .map(|r| old_cells[r][c])
+                        .collect();
+                    col_vec.reverse(); // Flip so index 0 is now the bottom of the grid.
+                    slide_line(&mut col_vec); // Compress toward index 0 (= original bottom).
+                    col_vec.reverse(); // Restore top-to-bottom order.
+
+                    for r in 0..4 {
+                        cols[r][c] = col_vec[r];
                     }
                 }
+
+                self.cells.copy_from_slice(&cols);
             }
         }
 
@@ -182,6 +208,93 @@ mod tests {
         assert!(grid.slide_and_merge(Direction::Left)); // Should move to left.
         assert_eq!(grid.cells[0][0].as_ref().unwrap().value, 2);
         assert!(grid.cells[0][3].is_none());
+    }
+
+    #[test]
+    fn test_slide_and_merge_right_moves_tiles() {
+        let mut grid = Grid::new();
+        // Tile at far left → should slide to far right.
+        grid.cells[0][0] = Some(Tile::new(2).unwrap());
+
+        assert!(grid.slide_and_merge(Direction::Right));
+        assert_eq!(grid.cells[0][3].as_ref().unwrap().value, 2);
+        assert!(grid.cells[0][0].is_none());
+    }
+
+    #[test]
+    fn test_slide_and_merge_right_merges() {
+        let mut grid = Grid::new();
+        // Two equal tiles at positions [0] and [1] → should merge at far right.
+        grid.cells[0][0] = Some(Tile::new(4).unwrap());
+        grid.cells[0][1] = Some(Tile::new(4).unwrap());
+
+        assert!(grid.slide_and_merge(Direction::Right));
+        // Merged tile should be at index 3 (rightmost), consumed tile gone.
+        assert_eq!(grid.cells[0][3].as_ref().unwrap().value, 8);
+        assert!(grid.cells[0][2].is_none());
+        assert!(grid.cells[0][1].is_none());
+    }
+
+    #[test]
+    fn test_slide_and_merge_up_moves_tiles() {
+        let mut grid = Grid::new();
+        // Tile at bottom (row 3) → should slide to top (row 0).
+        grid.cells[3][2] = Some(Tile::new(4).unwrap());
+
+        assert!(grid.slide_and_merge(Direction::Up));
+        assert_eq!(grid.cells[0][2].as_ref().unwrap().value, 4);
+        assert!(grid.cells[3][2].is_none());
+    }
+
+    #[test]
+    fn test_slide_and_merge_up_merges() {
+        let mut grid = Grid::new();
+        // Two equal tiles in column 1 at rows 0 and 1 → already adjacent to top.
+        // After Up: they compress to row 0, merge into one tile with value 4.
+        grid.cells[0][1] = Some(Tile::new(2).unwrap());
+        grid.cells[1][1] = Some(Tile::new(2).unwrap());
+
+        assert!(grid.slide_and_merge(Direction::Up));
+        // Row 0 gets the merged tile, row 1 consumed.
+        assert_eq!(grid.cells[0][1].as_ref().unwrap().value, 4);
+        assert!(grid.cells[1][1].is_none());
+    }
+
+    #[test]
+    fn test_slide_and_merge_down_moves_tiles() {
+        let mut grid = Grid::new();
+        // Tile at top (row 0) → should slide to bottom (row 3).
+        grid.cells[0][2] = Some(Tile::new(8).unwrap());
+
+        assert!(grid.slide_and_merge(Direction::Down));
+        assert_eq!(grid.cells[3][2].as_ref().unwrap().value, 8);
+        assert!(grid.cells[0][2].is_none());
+    }
+
+    #[test]
+    fn test_slide_and_merge_down_merges() {
+        let mut grid = Grid::new();
+        // Two equal tiles in column 1 at rows 2 and 3 → already adjacent to bottom.
+        // After Down: they compress to row 3, merge into one tile with value 32.
+        grid.cells[2][1] = Some(Tile::new(16).unwrap());
+        grid.cells[3][1] = Some(Tile::new(16).unwrap());
+
+        assert!(grid.slide_and_merge(Direction::Down));
+        // Row 3 gets the merged tile, row 2 consumed.
+        assert_eq!(grid.cells[3][1].as_ref().unwrap().value, 32);
+        assert!(grid.cells[2][1].is_none());
+    }
+
+    #[test]
+    fn test_slide_and_merge_down_no_change_empty() {
+        let mut grid = Grid::new();
+        assert!(!grid.slide_and_merge(Direction::Down)); // No tiles to move.
+    }
+
+    #[test]
+    fn test_slide_and_merge_right_no_change_empty() {
+        let mut grid = Grid::new();
+        assert!(!grid.slide_and_merge(Direction::Right)); // No tiles to move.
     }
 
     #[test]
